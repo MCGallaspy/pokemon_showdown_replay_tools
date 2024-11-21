@@ -28,6 +28,7 @@ dev = [
   "streamlit",
   "jupyter",
   "prefect",
+  "line-profiler",
 ]
 
 [tool.hatch.build.targets.wheel]

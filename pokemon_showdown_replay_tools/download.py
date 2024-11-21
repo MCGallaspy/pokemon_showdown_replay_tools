@@ -38,4 +38,9 @@ def search_date_range(
 def get_replay(replay_id: str):
     url = f"https://replay.pokemonshowdown.com/{replay_id}.json"
     resp = requests.get(url)
-    return json.loads(resp.content)
+    try:
+        result = json.loads(resp.content)
+    except json.decoder.JSONDecodeError as e:
+        print(resp.content)
+        raise Exception(f"Error with {url}") from e
+    return result

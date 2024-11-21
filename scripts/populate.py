@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from prefect import task, flow
 from prefect.cache_policies import INPUTS, TASK_SOURCE
 from prefect.concurrency.sync import rate_limit
+from prefect.futures import as_completed
 from prefect.tasks import task_input_hash
 from typing import Optional
 
@@ -34,16 +35,15 @@ def download_date_range(db_name: str, format: str, start: datetime, end: datetim
     remaining_searches: list[datetime] = [end]
     search_results_futures: list[Future] = []
     replays_to_download: list[dict] = []
-    replay_futures: list[Future] = []
     WARMUP_ITERATIONS = 10
     current_iteration = 0
+    REPLAY_BATCH_SIZE = 50
     while True:
         current_iteration += 1
         
         if len(remaining_searches) == 0 and \
                 len(search_results_futures) == 0 and \
                 len(replays_to_download) == 0 and \
-                len(replay_futures) == 0  and \
                 current_iteration >= WARMUP_ITERATIONS:
             print("Completed all pending work")
             break
@@ -52,7 +52,6 @@ def download_date_range(db_name: str, format: str, start: datetime, end: datetim
                 print(f"{len(remaining_searches)} remaining_searches")
                 print(f"{len(search_results_futures)} search_results_futures")
                 print(f"{len(replays_to_download)} replays_to_download")
-                print(f"{len(replay_futures)} replay_futures")
     
         time.sleep(1)
     
@@ -81,31 +80,22 @@ def download_date_range(db_name: str, format: str, start: datetime, end: datetim
             if remove_idx is not None:
                 search_results_futures.pop(remove_idx)
         
-        if current_iteration < WARMUP_ITERATIONS:
-            # The purpose of the warmup period is to resolve several searches
-            # and saturate the replays to download queue.
-            continue
-        
         # Submit replay downloads
+        replay_futures: list[Future] = []
         while len(replays_to_download) > 0:
-            replay_ids = [r['id'] for r in replays_to_download]
-            replay_futures.append(download_batch_replays.submit(replay_ids))
-            replays_to_download = []
+            replay_ids = [r['id'] for r in replays_to_download[:REPLAY_BATCH_SIZE]]
+            replays_to_download = replays_to_download[REPLAY_BATCH_SIZE:]
+            replay_future = concurrency_limited_get_replay.map(replay_ids)
+            replay_futures.append(replay_future)
         
-        # Persist finished replays
-        if len(replay_futures) > 0:
-            remove_idxs = []
-            ready_replays = []
-            for i, replay_future in enumerate(replay_futures):
-                if replay_future.state.is_completed():
-                    remove_idxs.append(i)
-                    if not replay_future.state.is_cancelled():
-                        ready_replays.extend(replay_future.result())
-            replay_futures = [f for (i, f) in enumerate(replay_futures) if i not in remove_idxs]
-            if ready_replays:
-                print("Persisting replays")
-                persist_replays(db_name, ready_replays)
-                print("Done persisting replays")
+        for replay_future in replay_futures:
+            ready_replays = [
+                future.result()
+                for future in as_completed(replay_future)
+                if not future.state.is_cancelled()
+            ]
+            print(f"Persisting {len(ready_replays)} replays")
+            persist_replays(db_name, ready_replays)
 
 
 @task(retries=3, retry_delay_seconds=1, log_prints=True)
@@ -149,19 +139,6 @@ def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "re
 def concurrency_limited_get_replay(replay_id: str):
     rate_limit("pokemon-showdown-rate-limit")
     return download.get_replay(replay_id)
-
-
-@task(retries=3, retry_delay_seconds=1)
-def download_batch_replays(replay_ids: list[str]):
-    futures = []
-    for replay_id in replay_ids:
-        futures.append(concurrency_limited_get_replay.submit(replay_id))
-    results = []
-    for future in futures:
-        future.wait()
-        if future.state.is_completed():
-            results.append(future.result())
-    return results
 
 
 def main(db_name: str, format: str, start: str, end: str):

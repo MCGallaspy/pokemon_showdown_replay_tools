@@ -1,6 +1,8 @@
 import json
 import requests
 
+from datetime import datetime
+from time import localtime, mktime
 from typing import Optional
 
 
@@ -15,6 +17,23 @@ def search(before: Optional[int] = None, format: Optional[str] = "gen9vgc2024reg
         params=params,
     )
     return json.loads(resp.content)
+
+def search_date_range(
+    start: datetime = datetime.strptime("2024-11-01 10:00:00", "%Y-%m-%d %H:%M:%S"),
+    end: datetime = datetime.strptime("2024-11-01 14:00:00", "%Y-%m-%d %H:%M:%S"),
+    format: Optional[str] = "gen9vgc2024regg",
+):
+    results = []
+    before = end
+    while before >= start:
+        search_results = search(before=before.timestamp(), format=format)
+        next_before = int(search_results[-1]['uploadtime'])
+        next_before = datetime.fromtimestamp(next_before)
+        if next_before == before:
+            break
+        before = next_before
+        results.extend(search_results)
+    return results
 
 def get_replay(replay_id: str):
     url = f"https://replay.pokemonshowdown.com/{replay_id}.json"

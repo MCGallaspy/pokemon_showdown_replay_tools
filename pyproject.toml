@@ -27,6 +27,7 @@ classifiers = [
 dev = [
   "streamlit",
   "jupyter",
+  "prefect",
 ]
 
 [tool.hatch.build.targets.wheel]

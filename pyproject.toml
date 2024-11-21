@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pokemon_showdown_replay_tools"
+version = "0.0.1"
+dependencies = [
+  "pandas",
+  "joblib",
+  "requests",
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Michael Gallaspy"},
+]
+description = "Tools for downloading and analyzing Pokemon Showdown replays."
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+keywords = ["pokemon", "showdown", "pokémon", "replays"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+dev = [
+  "streamlit",
+  "jupyter",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "pokemon_showdown_replay_tools/*.py",
+]
+exclude = [
+]

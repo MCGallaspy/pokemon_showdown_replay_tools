@@ -101,6 +101,7 @@ def perform_single_search(before: Optional[int] = None, format: str = "gen9vgc20
     return search(before=before, format=format)
 
 
+@flow(retries=3, retry_delay_seconds=1, log_prints=True)
 def create_replay_table(db_name: str, table_name: str = "replays"):
     con = sqlite3.connect(db_name)
     cur = con.cursor()
@@ -117,6 +118,7 @@ def create_replay_table(db_name: str, table_name: str = "replays"):
         con.close()
 
 
+@flow(retries=3, retry_delay_seconds=1, log_prints=True)
 def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "replays"):
     con = sqlite3.connect(db_name)
     cur = con.cursor()

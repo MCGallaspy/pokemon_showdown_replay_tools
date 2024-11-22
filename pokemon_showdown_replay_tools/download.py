@@ -17,6 +17,7 @@ def search(before: Optional[int] = None, format: Optional[str] = "gen9vgc2024reg
     resp = session.get(
         "https://replay.pokemonshowdown.com/search.json",
         params=params,
+        timeout=2,
     )
     return json.loads(resp.content)
 
@@ -42,7 +43,7 @@ def search_date_range(
 def get_replay(replay_id: str, session: Optional[Session] = None):
     session = session or requests
     url = f"https://replay.pokemonshowdown.com/{replay_id}.json"
-    resp = session.get(url)
+    resp = session.get(url, timeout=2)
     try:
         result = json.loads(resp.content)
     except json.decoder.JSONDecodeError as e:

@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import concurrent.futures
 import sqlite3
 import time
 
@@ -23,46 +24,48 @@ parser.add_argument('-b', '--batch_size', default=51)
 
 
 async def download_date_range(db_name: str, format: str, start: datetime, end: datetime, batch_size: int):
-    create_replay_table(db_name)
-    get_replay_tasks = []
-    loop_start = last_print = time.time()
-    print_delay = 10 # seconds
-    num_replays = 0
-    async for replay_ids in search_date_range(format, start, end):
-        get_replay_tasks.extend([
-            asyncio.create_task(get_replay(replay_id), name=replay_id)
-            for replay_id in replay_ids
-        ])
+    loop = asyncio.get_running_loop()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as pool:
+        create_replay_table(db_name)
+        get_replay_tasks = []
+        loop_start = last_print = time.time()
+        print_delay = 10 # seconds
+        num_replays = 0
+        async for replay_ids in search_date_range(format, start, end):
+            get_replay_tasks.extend([
+                loop.run_in_executor(pool, download.get_replay, replay_id)
+                for replay_id in replay_ids
+            ])
+            
+            if len(get_replay_tasks) >= batch_size:
+                ready_replays = [
+                    future.result()
+                    async for future in asyncio.as_completed(get_replay_tasks[:batch_size])
+                ]
+                get_replay_tasks = get_replay_tasks[batch_size:]
+                print(f"Persisting {len(ready_replays)} replays")
+                num_replays += len(ready_replays)
+                persist_replays(db_name, ready_replays)
+            
+            cur_time = time.time()
+            if cur_time - last_print > print_delay:
+                total_duration = cur_time - loop_start
+                print(f"Processed {num_replays} replays in {total_duration:.2f}s")
+                print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")
         
-        if len(get_replay_tasks) >= batch_size:
+        if get_replay_tasks:
             ready_replays = [
                 future.result()
-                async for future in asyncio.as_completed(get_replay_tasks[:batch_size])
+                async for future in asyncio.as_completed(get_replay_tasks)
             ]
-            get_replay_tasks = get_replay_tasks[batch_size:]
             print(f"Persisting {len(ready_replays)} replays")
             num_replays += len(ready_replays)
             persist_replays(db_name, ready_replays)
         
         cur_time = time.time()
-        if cur_time - last_print > print_delay:
-            total_duration = cur_time - loop_start
-            print(f"Processed {num_replays} replays in {total_duration:.2f}s")
-            print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")
-    
-    if get_replay_tasks:
-        ready_replays = [
-            future.result()
-            async for future in asyncio.as_completed(get_replay_tasks)
-        ]
-        print(f"Persisting {len(ready_replays)} replays")
-        num_replays += len(ready_replays)
-        persist_replays(db_name, ready_replays)
-    
-    cur_time = time.time()
-    total_duration = cur_time - loop_start
-    print(f"Processed {num_replays} replays in {total_duration:.2f}s")
-    print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")
+        total_duration = cur_time - loop_start
+        print(f"Processed {num_replays} replays in {total_duration:.2f}s")
+        print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")
 
 
 def create_replay_table(db_name: str, table_name: str = "replays"):

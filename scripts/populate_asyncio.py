@@ -21,11 +21,12 @@ parser.add_argument('-s', '--start', help="timestamp in format %%Y-%%m-%%d_%%H:%
 parser.add_argument('-e', '--end', help="timestamp in format %%Y-%%m-%%d_%%H:%%M:%%S", default="2024-11-01_14:00:00")
 parser.add_argument('-f', '--format', help="meta format", default="gen9vgc2024regh")
 parser.add_argument('-b', '--batch_size', default=51)
+parser.add_argument('-p', '--pool_size', default=500)
 
 
-async def download_date_range(db_name: str, format: str, start: datetime, end: datetime, batch_size: int):
+async def download_date_range(db_name: str, format: str, start: datetime, end: datetime, batch_size: int, pool_size: int):
     loop = asyncio.get_running_loop()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as pool:
         create_replay_table(db_name)
         get_replay_tasks = []
         loop_start = last_print = time.time()
@@ -129,12 +130,21 @@ async def get_replay(replay_id: str):
     return download.get_replay(replay_id)
 
 
-async def main(db_name: str, format: str, start: str, end: str, batch_size: int):
+async def main(db_name: str, format: str, start: str, end: str, batch_size: int, pool_size: int):
     start = datetime.strptime(start, "%Y-%m-%d_%H:%M:%S")
     end = datetime.strptime(end, "%Y-%m-%d_%H:%M:%S")
-    await download_date_range(db_name, format, start, end, batch_size)
+    await download_date_range(db_name, format, start, end, batch_size, pool_size)
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    asyncio.run(main(args.database, args.format, args.start, args.end, int(args.batch_size)))
+    asyncio.run(
+        main(
+            args.database,
+            args.format,
+            args.start,
+            args.end,
+            int(args.batch_size),
+            int(args.pool_size),
+        )
+    )

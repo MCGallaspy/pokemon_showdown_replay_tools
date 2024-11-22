@@ -32,6 +32,13 @@ async def download_date_range(db_name: str, format: str, start: datetime, end: d
     existing_replays = set(get_existing_replays(db_name))
     print(f"Found {len(existing_replays)} existing replays")
     
+    min_uploadtime = get_min_uploadtime(db_name, format)
+    min_uploadtime = datetime.fromtimestamp(int(min_uploadtime))
+    if start <= min_uploadtime and min_uploadtime < end:
+        print(f"Found earliest uploadtime of {min_uploadtime} earlier than given end={end}")
+        print(f"Replay fetching resuming from {min_uploadtime}")
+        end = min_uploadtime
+    
     loop = asyncio.get_running_loop()
     with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as pool, Session() as session:
         retries = Retry(
@@ -114,6 +121,19 @@ def get_existing_replays(db_name: str, table_name: str = "replays"):
     finally:
         con.close()
     return ids
+
+
+def get_min_uploadtime(db_name: str, format: str, table_name: str = "replays"):
+    con = sqlite3.connect(db_name)
+    cur = con.cursor()
+    try:
+        uploadtime = cur.execute(
+            f"SELECT uploadtime FROM {table_name} "
+            f"WHERE format = \"{format}\" ORDER BY uploadtime ASC LIMIT 1")
+        uploadtime = uploadtime.fetchone()[0]
+    finally:
+        con.close()
+    return uploadtime
 
 
 def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "replays"):

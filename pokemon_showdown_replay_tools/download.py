@@ -41,6 +41,5 @@ def get_replay(replay_id: str):
     try:
         result = json.loads(resp.content)
     except json.decoder.JSONDecodeError as e:
-        print(resp.content)
         raise Exception(f"Error with {url}") from e
     return result

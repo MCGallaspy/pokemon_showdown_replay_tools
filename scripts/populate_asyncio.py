@@ -54,6 +54,7 @@ async def download_date_range(db_name: str, format: str, start: datetime, end: d
                 total_duration = cur_time - loop_start
                 print(f"Processed {num_replays} replays in {total_duration:.2f}s")
                 print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")
+                print(f"Unprocessed replays: {len(get_replay_tasks)}")
         
         if get_replay_tasks:
             ready_replays = [
@@ -90,16 +91,21 @@ def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "re
     con = sqlite3.connect(db_name)
     cur = con.cursor()
     try:
+        data = []
         for replay in replay_data:
             log = replay['log'].replace('"', '""')
             players = ",".join(replay['players'])
             rating = replay['rating'] or "null"
-            cmd = f"""INSERT INTO {table_name}
-            (id, format, players, log, uploadtime, rating)
-            VALUES ("{replay['id']}", "{replay['formatid']}", "{players}",
-                    "{log}", {replay['uploadtime']}, {rating})
-            """            
-            cur.execute(cmd)
+            data.append((
+                replay['id'],
+                replay['formatid'],
+                players,
+                log,
+                replay['uploadtime'],
+                rating,
+            ))
+        cmd = f"INSERT INTO {table_name} (id, format, players, log, uploadtime, rating) VALUES(?, ?, ?, ?, ?, ?)"
+        cur.executemany(cmd, data)
     finally:
         con.commit()
         con.close()
@@ -107,9 +113,12 @@ def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "re
 
 async def search_date_range(format: str, start: datetime, end: datetime):
     remaining_searches: list[datetime] = [end]
+    replay_ids: list[str] = []
+    yield_size = 51 * 10
     while remaining_searches:
         before = remaining_searches.pop(0)
         search_result = await search(before=before.timestamp(), format=format)
+        replay_ids.extend([s['id'] for s in search_result])
         
         try:
             next_search_before = int(search_result[-1]['uploadtime'])
@@ -119,7 +128,12 @@ async def search_date_range(format: str, start: datetime, end: datetime):
         except (KeyError, IndexError):
             print("No more searches to perform")
         
-        yield [s['id'] for s in search_result]
+        if len(replay_ids) >= yield_size:
+            yield replay_ids[:yield_size]
+            replay_ids = replay_ids[yield_size:]
+    
+    if replay_ids:
+        yield replay_ids
 
 
 async def search(before: Optional[int] = None, format: Optional[str] = "gen9vgc2024regg"):
@@ -138,6 +152,7 @@ async def main(db_name: str, format: str, start: str, end: str, batch_size: int,
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    print(f"run with args {args}")
     asyncio.run(
         main(
             args.database,

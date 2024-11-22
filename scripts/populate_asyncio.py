@@ -49,6 +49,7 @@ async def download_date_range(db_name: str, format: str, start: datetime, end: d
             
             cur_time = time.time()
             if cur_time - last_print > print_delay:
+                last_print = cur_time
                 total_duration = cur_time - loop_start
                 print(f"Processed {num_replays} replays in {total_duration:.2f}s")
                 print(f"Estimated rate is {num_replays/total_duration:.2f} replays/second")

@@ -5,7 +5,10 @@ import sqlite3
 import time
 
 from datetime import datetime
+from requests import Session
+from requests.adapters import HTTPAdapter
 from typing import Optional
+from urllib3.util import Retry
 
 from pokemon_showdown_replay_tools import download
 
@@ -25,20 +28,33 @@ parser.add_argument('-p', '--pool_size', default=500)
 
 
 async def download_date_range(db_name: str, format: str, start: datetime, end: datetime, batch_size: int, pool_size: int):
+    create_replay_table(db_name)
+    existing_replays = set(get_existing_replays(db_name))
+    print(f"Found {len(existing_replays)} existing replays")
+    
     loop = asyncio.get_running_loop()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as pool:
-        create_replay_table(db_name)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as pool, Session() as session:
+        retries = Retry(
+            total=3,
+            backoff_factor=0.1,
+        )
+        session.mount('https://', HTTPAdapter(max_retries=retries))
         get_replay_tasks = []
         loop_start = last_print = time.time()
         print_delay = 10 # seconds
         num_replays = 0
-        async for replay_ids in search_date_range(format, start, end):
+        async for replay_ids in search_date_range(format, start, end, session):
             get_replay_tasks.extend([
-                loop.run_in_executor(pool, download.get_replay, replay_id)
+                loop.run_in_executor(pool, download.get_replay, replay_id, session)
                 for replay_id in replay_ids
+                if replay_id not in existing_replays
             ])
             
+            num_skipped = sum([int(replay_id in existing_replays) for replay_id in replay_ids])
+            print(f"Skipping {num_skipped} downloaded replays")
+            
             if len(get_replay_tasks) >= batch_size:
+                print(f"Processing batch of {batch_size}")
                 ready_replays = [
                     future.result()
                     async for future in asyncio.as_completed(get_replay_tasks[:batch_size])
@@ -57,6 +73,7 @@ async def download_date_range(db_name: str, format: str, start: datetime, end: d
                 print(f"Unprocessed replays: {len(get_replay_tasks)}")
         
         if get_replay_tasks:
+            print(f"Processing final batch of {batch_size}")
             ready_replays = [
                 future.result()
                 async for future in asyncio.as_completed(get_replay_tasks)
@@ -82,9 +99,21 @@ def create_replay_table(db_name: str, table_name: str = "replays"):
                         log TEXT NOT NULL,
                         uploadtime INTEGER NOT NULL,
                         rating INTEGER)""")
-    finally:
         con.commit()
+    finally:
         con.close()
+
+
+def get_existing_replays(db_name: str, table_name: str = "replays"):
+    con = sqlite3.connect(db_name)
+    cur = con.cursor()
+    try:
+        ids = cur.execute(f"SELECT id FROM {table_name}")
+        ids = cur.fetchall()
+        ids = [x[0] for x in ids]  # Unpack the tuple
+    finally:
+        con.close()
+    return ids
 
 
 def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "replays"):
@@ -106,18 +135,18 @@ def persist_replays(db_name: str, replay_data: list[dict], table_name: str = "re
             ))
         cmd = f"INSERT INTO {table_name} (id, format, players, log, uploadtime, rating) VALUES(?, ?, ?, ?, ?, ?)"
         cur.executemany(cmd, data)
-    finally:
         con.commit()
+    finally:
         con.close()
 
 
-async def search_date_range(format: str, start: datetime, end: datetime):
+async def search_date_range(format: str, start: datetime, end: datetime, session: Session):
     remaining_searches: list[datetime] = [end]
     replay_ids: list[str] = []
     yield_size = 51 * 10
     while remaining_searches:
         before = remaining_searches.pop(0)
-        search_result = await search(before=before.timestamp(), format=format)
+        search_result = await search(before=before.timestamp(), format=format, session=session)
         replay_ids.extend([s['id'] for s in search_result])
         
         try:
@@ -136,8 +165,12 @@ async def search_date_range(format: str, start: datetime, end: datetime):
         yield replay_ids
 
 
-async def search(before: Optional[int] = None, format: Optional[str] = "gen9vgc2024regg"):
-    return download.search(before, format)
+async def search(
+    before: Optional[int] = None,
+    format: Optional[str] = "gen9vgc2024regg",
+    session: Optional[Session] = None,
+):
+    return download.search(before, format, session)
 
 
 async def get_replay(replay_id: str):

@@ -132,7 +132,6 @@ def get_min_uploadtime(db_name: str, format: str, table_name: str = "replays"):
         uploadtime = cur.execute(
             f"SELECT uploadtime FROM {table_name} "
             f"WHERE format = \"{format}\" ORDER BY uploadtime ASC LIMIT 1")
-        uploadtime = uploadtime.fetchone()
         uploadtime = uploadtime.fetchone()[0] if uploadtime else None
     finally:
         con.close()

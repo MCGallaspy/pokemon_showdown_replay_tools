@@ -22,6 +22,8 @@ The replays table definition:
 import sqlite3
 import pandas as pd
 
+from typing import Optional
+
 from pokemon_showdown_replay_tools.analysis import parse_replay
 
 
@@ -102,6 +104,42 @@ def get_pair_marginal_win_rates(
             WITH player_appearances AS (
                 SELECT a1.pokemon as p1, a2.pokemon as p2, a1.player, a1.won as won
                 FROM appearances as a1, appearances as a2
+                WHERE a1.id = a2.id AND a1.player = a2.player AND p1 < p2
+            ) SELECT p1, p2, player, COUNT(*) as appearances, SUM(won) as won
+              FROM player_appearances
+              GROUP BY p1, p2, player
+        ) SELECT p1, p2, COUNT(*) as players, SUM(appearances) as appearances, SUM(won) as wins
+          FROM pairs
+          GROUP BY p1, p2
+    ) SELECT *, 1.0 * wins / appearances FROM marginal
+      ORDER BY appearances DESC
+    """)
+    return cur.fetchall()
+
+
+def get_pair_marginal_win_rates_conditional(
+    database_con: sqlite3.Connection,
+    where: str = '',
+    appearances_table_name: str = "appearances",
+    replay_table_name: str = "replays",
+    explain: bool = False,
+):
+    """
+    Computes marginal win rate, but you can optionally you can specify
+    a WHERE clause on the replays table to filter the replays considered.
+    """
+    cur = database_con.cursor()
+    explain = "EXPLAIN QUERY PLAN" if explain else ""
+    cur.execute(f"""
+    {explain} WITH marginal AS (
+        WITH pairs AS (
+            WITH player_appearances AS (
+                WITH filtered_appearances AS (
+                    SELECT * FROM {appearances_table_name}
+                    WHERE id IN (SELECT id FROM {replay_table_name} {where})
+                )
+                SELECT a1.pokemon as p1, a2.pokemon as p2, a1.player, a1.won as won
+                FROM filtered_appearances as a1, filtered_appearances as a2
                 WHERE a1.id = a2.id AND a1.player = a2.player AND p1 < p2
             ) SELECT p1, p2, player, COUNT(*) as appearances, SUM(won) as won
               FROM player_appearances

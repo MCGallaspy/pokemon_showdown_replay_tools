@@ -83,3 +83,33 @@ def create_appearances_table(
             cur.executemany(f"INSERT INTO {appearances_table_name} VALUES(?, ?, ?, ?)", data)
         batch = batch_cur.fetchmany(BATCH_SIZE)
     database_con.commit()
+
+
+def get_pair_marginal_win_rates(
+    database_con: sqlite3.Connection,
+    appearances_table_name: str = "appearances",
+):
+    """
+    Computes the marginal probability of pairs of pokemon winning.
+    A pair is considered to have won if it appeared at least once in a battle
+    (although not necessarily with both pokemon on the board at the same time)
+    and their team ended up winning.
+    """
+    cur = database_con.cursor()
+    cur.execute("""
+    WITH marginal AS (
+        WITH pairs AS (
+            WITH player_appearances AS (
+                SELECT a1.pokemon as p1, a2.pokemon as p2, a1.player, a1.won as won
+                FROM appearances as a1, appearances as a2
+                WHERE a1.id = a2.id AND a1.player = a2.player AND p1 < p2
+            ) SELECT p1, p2, player, COUNT(*) as appearances, SUM(won) as won
+              FROM player_appearances
+              GROUP BY p1, p2, player
+        ) SELECT p1, p2, COUNT(*) as players, SUM(appearances) as appearances, SUM(won) as wins
+          FROM pairs
+          GROUP BY p1, p2
+    ) SELECT *, 1.0 * wins / appearances FROM marginal
+      ORDER BY appearances DESC
+    """)
+    return cur.fetchall()

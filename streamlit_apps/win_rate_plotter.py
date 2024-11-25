@@ -14,8 +14,16 @@ def get_data():
 
 df = get_data()
 
-display_list = df.pair.unique()[:3]
-st.markdown(f"Displaying results for {display_list}")
+all_pairs = list(df.pair.unique())
+display_list = st.multiselect(
+    "Select pokémon pairs to display results",
+    all_pairs,
+    default=all_pairs[:3],
+)
+
+if not display_list:
+    st.warning("Select at least one pair of pokémon")
+    st.stop()
 
 @st.cache_data
 def get_figure(df, display_list, ycol):

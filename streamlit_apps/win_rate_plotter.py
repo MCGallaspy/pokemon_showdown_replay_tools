@@ -8,7 +8,7 @@ sns.set_style('darkgrid')
 
 @st.cache_resource
 def get_data():
-    df = pd.read_parquet('streamlit_apps/win_rates.1732571443.parquet')
+    df = pd.read_parquet('streamlit_apps/win_rates.1732576965.parquet')
     df.win_rate = df.win_rate * 100
     return df
 

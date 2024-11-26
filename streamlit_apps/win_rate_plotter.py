@@ -14,11 +14,43 @@ def get_data():
 
 df = get_data()
 
+
+with st.sidebar:
+    mean_win_rate = df.groupby(by=["pair"]).win_rate.mean()
+    mse_df = df.set_index('pair')
+    mse_df['mean_win_rate'] = mean_win_rate
+    mse_df['sq_error'] = (mse_df.mean_win_rate - mse_df.win_rate)**2
+    mse_df = mse_df.groupby(by='pair').agg({
+        "sq_error": ["mean", "std", "size"],
+        "appearances": "sum",
+    })
+    mse_df = mse_df[mse_df.loc[:, ('sq_error', 'size')] >= 2]
+    st.markdown("Pick random pairs\nbased on certain criteria")
+    num_pairs = st.number_input("Num pairs", 0, None, value=3)
+    criterion = st.selectbox("Criteria", options=[
+        "High usage",
+        "Medium usage",
+        "Low usage",
+    ])
+    if st.button("Do it!"):
+        low, mid = mse_df.loc[:, ('appearances', 'sum')].quantile([0.99, 0.999])
+        if criterion == "High usage":
+            mask = mse_df.loc[:, ('appearances', 'sum')] > mid
+        elif criterion == "Medium usage":
+            mask = mse_df.loc[:, ('appearances', 'sum')] <= mid
+            mask &= mse_df.loc[:, ('appearances', 'sum')] > low
+        elif criterion == "Low usage":
+            mask = mse_df.loc[:, ('appearances', 'sum')] <= low
+        sample = mse_df[mask].sample(n=num_pairs)
+        st.write(f"Picking from {mse_df[mask].shape[0]} pairs")
+        st.session_state['random_selectors'] = list(sample.index)
+
+
 all_pairs = list(df.pair.unique())
 display_list = st.multiselect(
     "Select pokémon pairs to display results",
     all_pairs,
-    default=all_pairs[:3],
+    default=st.session_state.get('random_selectors', None) or "Archaludon, Pelipper",
 )
 
 if not display_list:
@@ -96,11 +128,12 @@ st.write(fig)
 st.markdown("**Note:** The data comes from Pokemon Showdown Reg H Bo1 and Bo3 replays with a rating >= 1300.")
 
 if st.toggle("Show data table", value=False):
+    data_table = df[df.pair.isin(display_list)]
     if st.toggle("Average over all weeks", value=True):
-        st.write(df.groupby(by="pair").agg({
+        st.write(data_table.groupby(by="pair").agg({
             "win_rate": ["mean", "median", "std"],
             "players": "sum",
             "week": "count",
         }))
     else:
-        st.write(df[df.pair.isin(display_list)])
+        st.write(data_table)

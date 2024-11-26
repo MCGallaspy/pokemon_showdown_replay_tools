@@ -23,6 +23,7 @@ with st.sidebar:
     mse_df = mse_df.groupby(by='pair').agg({
         "sq_error": ["mean", "std", "size"],
         "appearances": "sum",
+        "week": "count",
     })
     mse_df = mse_df[mse_df.loc[:, ('sq_error', 'size')] >= 2]
     st.markdown("Pick random pairs\nbased on certain criteria")
@@ -30,11 +31,17 @@ with st.sidebar:
     num_criteria = st.number_input("Num criteria", 0, 100, value=1)
     criteria = []
     operators = []
+    low, mid = mse_df.loc[:, ('appearances', 'sum')].quantile([0.99, 0.999])
+    mse_cutoff = 50
     for i in range(num_criteria):
+        high_usage = f"High usage ({int(mid)}+)"
+        med_usage = f"Medium usage ({int(low)} to {int(mid)})"
+        low_usage = f"Low usage (below {int(low)})"
+        high_consistency = f"High consistency"
+        low_consistency = f"Low consistency"
         criterion = st.selectbox(f"Criterion {i+1}", options=[
-            "High usage",
-            "Medium usage",
-            "Low usage",
+            high_usage, med_usage, low_usage,
+            high_consistency, low_consistency
         ])
         criteria.append(criterion)
         
@@ -47,17 +54,22 @@ with st.sidebar:
             operators.append(operator)
 
     if st.button("Do it!"):
-        low, mid = mse_df.loc[:, ('appearances', 'sum')].quantile([0.99, 0.999])
         overall_mask = None
         for criterion_num, criterion in enumerate(criteria):
-            if criterion == "High usage":
+            if criterion == high_usage:
                 mask = mse_df.loc[:, ('appearances', 'sum')] >= mid
-            elif criterion == "Medium usage":
+            elif criterion == med_usage:
                 mask = mse_df.loc[:, ('appearances', 'sum')] < mid
                 mask &= mse_df.loc[:, ('appearances', 'sum')] >= low
-            elif criterion == "Low usage":
+            elif criterion == low_usage:
                 mask = mse_df.loc[:, ('appearances', 'sum')] < low
-            
+            elif criterion == high_consistency:
+                mask = mse_df.loc[:, ('sq_error', 'mean')] < mse_cutoff
+                mask &= mse_df.loc[:, ('week', 'count')] >= 16
+            elif criterion == low_consistency:
+                mask = mse_df.loc[:, ('sq_error', 'mean')] >= mse_cutoff
+                #mask &= mse_df.loc[:, ('appearances', 'sum')] >= 16
+
             if overall_mask is None:
                 overall_mask = mask
             elif criterion_num <= len(operators):

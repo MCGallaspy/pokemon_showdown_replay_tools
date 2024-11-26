@@ -27,24 +27,52 @@ with st.sidebar:
     mse_df = mse_df[mse_df.loc[:, ('sq_error', 'size')] >= 2]
     st.markdown("Pick random pairs\nbased on certain criteria")
     num_pairs = st.number_input("Num pairs", 0, None, value=3)
-    criterion = st.selectbox("Criteria", options=[
-        "High usage",
-        "Medium usage",
-        "Low usage",
-    ])
+    num_criteria = st.number_input("Num criteria", 0, 100, value=1)
+    criteria = []
+    operators = []
+    for i in range(num_criteria):
+        criterion = st.selectbox(f"Criterion {i+1}", options=[
+            "High usage",
+            "Medium usage",
+            "Low usage",
+        ])
+        criteria.append(criterion)
+        
+        if i != num_criteria - 1:
+            operator = st.radio(
+                "",
+                options=["and", "or"],
+                index=0,
+            )
+            operators.append(operator)
+
     if st.button("Do it!"):
         low, mid = mse_df.loc[:, ('appearances', 'sum')].quantile([0.99, 0.999])
-        if criterion == "High usage":
-            mask = mse_df.loc[:, ('appearances', 'sum')] > mid
-        elif criterion == "Medium usage":
-            mask = mse_df.loc[:, ('appearances', 'sum')] <= mid
-            mask &= mse_df.loc[:, ('appearances', 'sum')] > low
-        elif criterion == "Low usage":
-            mask = mse_df.loc[:, ('appearances', 'sum')] <= low
-        sample = mse_df[mask].sample(n=num_pairs)
-        st.write(f"Picking from {mse_df[mask].shape[0]} pairs")
-        st.session_state['random_selectors'] = list(sample.index)
-
+        overall_mask = None
+        for criterion_num, criterion in enumerate(criteria):
+            if criterion == "High usage":
+                mask = mse_df.loc[:, ('appearances', 'sum')] >= mid
+            elif criterion == "Medium usage":
+                mask = mse_df.loc[:, ('appearances', 'sum')] < mid
+                mask &= mse_df.loc[:, ('appearances', 'sum')] >= low
+            elif criterion == "Low usage":
+                mask = mse_df.loc[:, ('appearances', 'sum')] < low
+            
+            if overall_mask is None:
+                overall_mask = mask
+            elif criterion_num <= len(operators):
+                n = criterion_num - 1
+                if operators[n] == "and":
+                    overall_mask &= mask
+                elif operators[n] == "or":
+                    overall_mask |= mask
+        
+        if overall_mask.sum() > 0:
+            sample = mse_df[overall_mask].sample(n=num_pairs)
+            st.write(f"Picking from {mse_df[overall_mask].shape[0]} pairs")
+            st.session_state['random_selectors'] = list(sample.index)
+        else:
+            st.warning("No matches")
 
 all_pairs = list(df.pair.unique())
 display_list = st.multiselect(

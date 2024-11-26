@@ -24,6 +24,7 @@ with st.sidebar:
         "sq_error": ["mean", "std", "size"],
         "appearances": "sum",
         "week": "count",
+        "win_rate": "mean",
     })
     mse_df = mse_df[mse_df.loc[:, ('sq_error', 'size')] >= 2]
     st.markdown("Pick random pairs\nbased on certain criteria")
@@ -33,23 +34,36 @@ with st.sidebar:
     operators = []
     low, mid = mse_df.loc[:, ('appearances', 'sum')].quantile([0.99, 0.999])
     mse_cutoff = 50
+    win_rate_cutoff = None
     for i in range(num_criteria):
         high_usage = f"High usage ({int(mid)}+)"
         med_usage = f"Medium usage ({int(low)} to {int(mid)})"
         low_usage = f"Low usage (below {int(low)})"
         high_consistency = f"High consistency"
         low_consistency = f"Low consistency"
-        criterion = st.selectbox(f"Criterion {i+1}", options=[
+        win_rate_gt = "Average win rate > X%"
+        
+        container = st.container()
+        cols = container.columns(2)
+        
+        criterion = cols[0].selectbox(f"Criterion {i+1}", options=[
             high_usage, med_usage, low_usage,
-            high_consistency, low_consistency
+            high_consistency, low_consistency,
+            win_rate_gt,
         ])
         criteria.append(criterion)
         
+        if criterion == win_rate_gt:
+            cutoff = cols[1].number_input("X", 0, 100, value=50)
+            if win_rate_cutoff is None or cutoff > win_rate_cutoff:
+                win_rate_cutoff = cutoff
+        
         if i != num_criteria - 1:
-            operator = st.radio(
+            operator = container.radio(
                 "",
                 options=["and", "or"],
                 index=0,
+                key=f"operator_{i}"
             )
             operators.append(operator)
 
@@ -68,7 +82,8 @@ with st.sidebar:
                 mask &= mse_df.loc[:, ('week', 'count')] >= 16
             elif criterion == low_consistency:
                 mask = mse_df.loc[:, ('sq_error', 'mean')] >= mse_cutoff
-                #mask &= mse_df.loc[:, ('appearances', 'sum')] >= 16
+            elif criterion == win_rate_gt:
+                mask = mse_df.loc[:, ('win_rate', 'mean')] > win_rate_cutoff
 
             if overall_mask is None:
                 overall_mask = mask
@@ -79,7 +94,7 @@ with st.sidebar:
                 elif operators[n] == "or":
                     overall_mask |= mask
         
-        if overall_mask.sum() > 0:
+        if overall_mask.sum() > 0 and num_pairs <= overall_mask.sum():
             sample = mse_df[overall_mask].sample(n=num_pairs)
             st.write(f"Picking from {mse_df[overall_mask].shape[0]} pairs")
             st.session_state['random_selectors'] = list(sample.index)

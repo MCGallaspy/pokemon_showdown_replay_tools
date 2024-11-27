@@ -50,22 +50,41 @@ if replays_df is not None and daily_marginals_df is not None:
         "Plot daily win rates for these pairs",
         options=unique_pairs
     )
+    disaggregate_formats = st.toggle("By format")
     if display_list:
         mask = daily_marginals_df.pair.isin(display_list)
-        facetgrid = sns.relplot(
-            data=daily_marginals_df[mask],
-            kind="line",
-            hue='pair',
-            style='pair',
-            col="format",
-            col_wrap=1,
-            x='day',
-            y='Win %',
-            aspect=2,
-            estimator='mean',
-            errorbar=None,
-        )
-        st.write(facetgrid.figure)
+        if disaggregate_formats:
+            facetgrid = sns.relplot(
+                data=daily_marginals_df[mask],
+                kind="line",
+                hue='pair',
+                style='pair',
+                col="format",
+                col_wrap=1,
+                x='day',
+                y='Win %',
+                aspect=2,
+                estimator='mean',
+                errorbar=None,
+                linewidth=3,
+                palette='colorblind',
+            )
+            figure = facetgrid.figure
+        else:
+            figure = plt.figure(figsize=(12, 6))
+            ax = plt.gca()
+            sns.lineplot(
+                data=daily_marginals_df[mask],
+                hue='pair',
+                style='pair',
+                x='day',
+                y='Win %',
+                estimator='weighted_mean',
+                ax=ax,
+                linewidth=3,
+                palette='colorblind',
+            )
+        st.write(figure)
 
 if st.button("Download & analyze replay logs"):
     with st.spinner("Compulating..."):

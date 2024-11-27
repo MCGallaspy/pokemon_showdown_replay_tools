@@ -20,13 +20,13 @@ from pokemon_showdown_replay_tools import download
 
 st.header("Public Replay Report Card")
 
-username = st.text_input("Username", value=st.session_state.get("report_username", "pikachu"))
+username = st.text_input("Username", value=st.session_state.get("report_username", "zqrubl"))
 
 st.markdown("## Filters")
 filters_columns = st.columns(3)
 
 with filters_columns[0]:
-    start, end = datetime.strptime("2024/01/01", "%Y/%m/%d"), datetime.fromtimestamp(time.time())
+    start, end = datetime.strptime("2024/11/01", "%Y/%m/%d"), datetime.fromtimestamp(time.time())
     date_filters = st.date_input(
         "Upload date range",
         value=(start, end),

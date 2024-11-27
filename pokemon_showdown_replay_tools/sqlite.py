@@ -90,6 +90,7 @@ def create_appearances_table(
 def get_pair_marginal_win_rates(
     database_con: sqlite3.Connection,
     appearances_table_name: str = "appearances",
+    explain: bool = False,
 ):
     """
     Computes the marginal probability of pairs of pokemon winning.
@@ -98,8 +99,9 @@ def get_pair_marginal_win_rates(
     and their team ended up winning.
     """
     cur = database_con.cursor()
-    cur.execute("""
-    WITH marginal AS (
+    explain = "EXPLAIN QUERY PLAN" if explain else ""
+    cur.execute(f"""
+    {explain} WITH marginal AS (
         WITH pairs AS (
             WITH player_appearances AS (
                 SELECT a1.pokemon as p1, a2.pokemon as p2, a1.player, a1.won as won

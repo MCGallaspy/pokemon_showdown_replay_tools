@@ -4,6 +4,7 @@ import streamlit as st
 
 from matplotlib import pyplot as plt
 
+st.header("Format Win Rates")
 
 df = st.session_state.get('search_df', None)
 if df is None:

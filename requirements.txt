@@ -118,6 +118,7 @@ pathspec==0.12.1
 pendulum==3.0.0
 pillow==11.0.0
 platformdirs==4.3.6
+-e git+https://github.com/MCGallaspy/pokemon_showdown_replay_tools.git@730fd5f11ffa91429f4457d378fc51538b91a6b6#egg=pokemon_showdown_replay_tools
 prefect==3.1.4
 prometheus_client==0.21.0
 prompt_toolkit==3.0.48

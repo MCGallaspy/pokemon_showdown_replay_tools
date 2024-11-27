@@ -7,19 +7,27 @@ from time import localtime, mktime
 from typing import Optional
 
 
-def search(before: Optional[int] = None, format: Optional[str] = "gen9vgc2024regg", session: Optional[Session] = None):
+def search(
+    before: Optional[int] = None,
+    format: Optional[str] = "gen9vgc2024regg",
+    username: Optional[str] = None,
+    session: Optional[Session] = None,
+):
     session = session or requests
     params = {}
     if before is not None:
         params.update({"before": before})
     if format is not None:
         params.update({"format": format})
+    if username is not None:
+        params.update({"user": username})
     resp = session.get(
         "https://replay.pokemonshowdown.com/search.json",
         params=params,
         timeout=2,
     )
     return json.loads(resp.content)
+
 
 def search_date_range(
     start: datetime = datetime.strptime("2024-11-01 10:00:00", "%Y-%m-%d %H:%M:%S"),
@@ -39,6 +47,7 @@ def search_date_range(
         before = next_before
         results.extend(search_results)
     return results
+
 
 def get_replay(replay_id: str, session: Optional[Session] = None):
     session = session or requests

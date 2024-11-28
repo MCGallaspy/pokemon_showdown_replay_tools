@@ -46,11 +46,13 @@ with filters_columns[0]:
     ]
 
 with filters_columns[1]:
-    rating_filter_start, rating_filter_end = st.slider(
-        "Rating range",
-        value=(1000, 2000),
-        min_value=1000,
-        max_value=2000,
+    rating_filter_start = st.number_input(
+        "Rating min",
+        1000,
+    )
+    rating_filter_end = st.number_input(
+        "Rating max",
+        9000,
     )
 
 with filters_columns[2]:
@@ -70,14 +72,12 @@ def cached_search(before, username):
 
 def search_date_range(username: str, start: datetime, end: datetime):
     remaining_searches: list[datetime] = [end]
-    replay_ids: list[str] = []
     search_results: list[dict] = []
     while remaining_searches:
         before = remaining_searches.pop(0)
         before=int(before.timestamp())
         search_result = cached_search(before=before, username=username)
         search_results.append(search_result)
-        replay_ids.extend([s['id'] for s in search_result])
         
         try:
             next_search_before = int(search_result[-1]['uploadtime'])
@@ -87,7 +87,17 @@ def search_date_range(username: str, start: datetime, end: datetime):
         except (KeyError, IndexError):
             print("No more searches to perform")
     
-    return [replay for replay_list in search_results for replay in replay_list]
+    search_results = [sr for sr_list in search_results for sr in sr_list]
+    search_results = [
+        s for s in search_results 
+        if (include_unrated and (s['rating'] is None)) or
+        (
+            (s['rating'] is not None) and
+            (rating_filter_start <= s['rating'] <= rating_filter_end)
+        )
+    ]
+    
+    return search_results
 
 if st.button("Load data"):
     with st.spinner("Compulating..."):

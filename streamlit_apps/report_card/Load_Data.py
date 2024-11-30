@@ -125,6 +125,8 @@ if st.button("Load data"):
             del st.session_state['replays_df']
         if 'appearances_df' in st.session_state:
             del st.session_state['appearances_df']
+        if 'daily_marginals_df' in st.session_state:
+            del st.session_state['daily_marginals_df']
         st.rerun()
 
 
@@ -156,8 +158,8 @@ if search_df is not None:
             pbar.progress(count / N, "Downloading replays")
             return result
 
-        replays_df = search_df.apply(
-            lambda row: get_replay_with_progress(row.id),
+        replays_df = search_df.set_index('id').apply(
+            lambda row: get_replay_with_progress(row.name),
             axis=1,
             result_type="expand",
         )
@@ -224,7 +226,9 @@ if search_df is not None:
         seen_pokemon_filter = st.multiselect(
             "Filter by pokémon seen",
             all_mons,
+            default=st.session_state.get('seen_pokemon_filter', None)
         )
+        st.session_state['seen_pokemon_filter'] = seen_pokemon_filter
     with seen_pokemon_picker[1]:
         seen_pokemon_mode = st.radio(
             "Mode", ["any", "all"], index=1, key="seen_pokemon_mode")
@@ -245,7 +249,9 @@ if search_df is not None:
         won_pokemon_filter = st.multiselect(
             "Filter by pokémon that won",
             all_mons,
+            default=st.session_state.get('won_pokemon_filter', None)
         )
+        st.session_state['won_pokemon_filter'] = won_pokemon_filter
     with won_pokemon_picker[1]:
         won_pokemon_mode = st.radio(
             "Mode", ["any", "all"], index=1, key="won_pokemon_mode")
@@ -267,7 +273,9 @@ if search_df is not None:
         lost_pokemon_filter = st.multiselect(
             "Filter by pokémon that lost",
             all_mons,
+            default=st.session_state.get('lost_pokemon_filter', None)
         )
+        st.session_state['lost_pokemon_filter'] = lost_pokemon_filter
     with lost_pokemon_picker[1]:
         lost_pokemon_mode = st.radio(
             "Mode", ["any", "all"], index=1, key="lost_pokemon_mode")
@@ -283,6 +291,8 @@ if search_df is not None:
             else:
                 ids.append(replay_id)
         selection_mask &= search_df.id.isin(ids)
+
+    st.session_state['selection_mask'] = selection_mask
 
     col_config = {
         "replay_link": st.column_config.LinkColumn(

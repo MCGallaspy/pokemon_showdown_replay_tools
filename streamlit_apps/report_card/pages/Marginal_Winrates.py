@@ -26,7 +26,7 @@ selection_mask = st.session_state['selection_mask']
 search_df = search_df[selection_mask]
 
 replays_df = st.session_state.get('replays_df', None)
-replays_df = replays_df[replays_df.id.isin(search_df.id)]
+replays_df = replays_df[replays_df.id.isin(search_df.id)].copy()
 
 with st.spinner("Compulating..."):
     appearances_df = st.session_state['appearances_df']
@@ -48,14 +48,12 @@ with st.spinner("Compulating..."):
         ])
         del win_rates_df['players']
         win_rates_df['Win %'] *= 100
-        st.session_state['win_rates_df'] = win_rates_df
 
         replays_df["ymd"] = replays_df.uploadtime.apply(datetime.fromtimestamp).dt.strftime("%Y/%m/%d")
         dfs = []
         for label, group_df in replays_df.groupby(by=["ymd", "format"]):
             format = label[1]
             day_start, day_end = group_df.uploadtime.min(), group_df.uploadtime.max()
-
             where = f"WHERE uploadtime > {day_start} AND uploadtime <= {day_end} "
             marginal_df = pd.DataFrame(
                 data=get_pair_marginal_win_rates_conditional(con, where),

@@ -125,8 +125,6 @@ if st.button("Load data"):
             del st.session_state['replays_df']
         if 'appearances_df' in st.session_state:
             del st.session_state['appearances_df']
-        if 'daily_marginals_df' in st.session_state:
-            del st.session_state['daily_marginals_df']
         st.rerun()
 
 
@@ -230,8 +228,17 @@ if search_df is not None:
         )
         st.session_state['seen_pokemon_filter'] = seen_pokemon_filter
     with seen_pokemon_picker[1]:
+        idx = 1
+        if st.session_state.get("seen_pokemon_mode", None) == "any":
+            idx = 0
+        elif st.session_state.get("seen_pokemon_mode", None) == "all":
+            idx = 1
         seen_pokemon_mode = st.radio(
-            "Mode", ["any", "all"], index=1, key="seen_pokemon_mode")
+            "Mode", ["any", "all"],
+            index=idx,
+            key="seen_pokemon_mode_picker",
+        )
+        st.session_state['seen_pokemon_mode'] = seen_pokemon_mode
     if seen_pokemon_filter:
         filtered_appearances_mask = appearances_df.pokemon.isin(seen_pokemon_filter)
         ids = []
@@ -253,8 +260,17 @@ if search_df is not None:
         )
         st.session_state['won_pokemon_filter'] = won_pokemon_filter
     with won_pokemon_picker[1]:
+        idx = 1
+        if st.session_state.get("won_pokemon_mode", None) == "any":
+            idx = 0
+        elif st.session_state.get("won_pokemon_mode", None) == "all":
+            idx = 1
         won_pokemon_mode = st.radio(
-            "Mode", ["any", "all"], index=1, key="won_pokemon_mode")
+            "Mode", ["any", "all"],
+            index=idx,
+            key="won_pokemon_mode_picker",
+        )
+        st.session_state['won_pokemon_mode'] = won_pokemon_mode
     if won_pokemon_filter:
         filtered_appearances_mask = appearances_df.pokemon.isin(won_pokemon_filter)
         filtered_appearances_mask &= appearances_df.won.astype(bool)
@@ -277,8 +293,17 @@ if search_df is not None:
         )
         st.session_state['lost_pokemon_filter'] = lost_pokemon_filter
     with lost_pokemon_picker[1]:
+        idx = 1
+        if st.session_state.get("lost_pokemon_mode", None) == "any":
+            idx = 0
+        elif st.session_state.get("lost_pokemon_mode", None) == "all":
+            idx = 1
         lost_pokemon_mode = st.radio(
-            "Mode", ["any", "all"], index=1, key="lost_pokemon_mode")
+            "Mode", ["any", "all"],
+            index=idx,
+            key="lost_pokemon_mode_picker",
+        )
+        st.session_state['lost_pokemon_mode'] = lost_pokemon_mode
     if lost_pokemon_filter:
         filtered_appearances_mask = appearances_df.pokemon.isin(lost_pokemon_filter)
         filtered_appearances_mask &= ~appearances_df.won.astype(bool)

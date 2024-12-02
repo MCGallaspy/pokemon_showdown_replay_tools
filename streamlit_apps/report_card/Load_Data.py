@@ -22,6 +22,16 @@ from pokemon_showdown_replay_tools import download
 
 st.header("Public Replay Report Card")
 
+st.markdown("""**How to use:**
+1. Play games on Pokemon Showdown and make the replays public. (See image below).
+2. Use this page to load the replays by specifying a username and clicking "Load Data".
+3. (Optional) Filter games to use in the resulting analysis.
+4. Use the sidebar to navigate to different reports.
+If you play more games, simply click "Load Data" again for them to be reflected in the reports.
+""")
+
+st.image("streamlit_apps/report_card/pages/save_replays.png", caption="Click this button to make your replays public.")
+
 username = st.text_input("Username", value=st.session_state.get("report_username", "zqrubl"))
 
 st.markdown("## Filters")

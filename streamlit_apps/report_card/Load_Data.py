@@ -9,7 +9,7 @@ import seaborn as sns
 import streamlit as st
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from matplotlib import pyplot as plt
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -28,13 +28,11 @@ st.markdown("## Filters")
 filters_columns = st.columns(3)
 
 with filters_columns[0]:
-    end = datetime.fromtimestamp(time.time())
-    start = datetime.fromtimestamp(time.time() - 60 * 60 * 24)
+    end = datetime.utcnow()
+    start = datetime.utcnow() - timedelta(days=1)
     date_filters = st.date_input(
-        "Upload date range",
+        "Upload date range (UTC)",
         value=(start, end),
-        min_value=start,
-        max_value=end,
         format="YYYY/MM/DD"
     )
     if len(date_filters) == 0:
@@ -43,10 +41,8 @@ with filters_columns[0]:
         filter_start, filter_end = date_filters[0], end
     if len(date_filters) == 2:
         filter_start, filter_end = date_filters
-    filter_start, filter_end = [
-        datetime.combine(d, datetime.min.time())
-        for d in (filter_start, filter_end)
-    ]
+    filter_start = datetime.combine(filter_start, datetime.min.time())
+    filter_end = datetime.combine(filter_end, datetime.max.time())
 
 with filters_columns[1]:
     rating_filter_start = st.number_input(

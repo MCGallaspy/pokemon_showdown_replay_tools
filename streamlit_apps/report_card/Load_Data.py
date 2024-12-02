@@ -193,6 +193,7 @@ if search_df is not None:
             # parsed_replay is a nested dictionary of info about the replay
             # For details see parse_replay in analysis.py
             winner_name = parsed_replay['winner'].lower()
+            appearance_num = 0
             for pokemon_appearance in parsed_replay['pokemon']:
                 player_name = pokemon_appearance['player'].lower()
                 if player_name == report_username:
@@ -201,10 +202,12 @@ if search_df is not None:
                         pokemon_appearance['player'],
                         pokemon_appearance['name'],
                         1 if winner_name == player_name else 0,
+                        appearance_num,
                     ])
+                    appearance_num +=  1
             count += 1
             pbar.progress(count / N, "Analyzing appearances")
-        appearances_df = pd.DataFrame(data=data, columns=['id', 'player', 'pokemon', 'won'])
+        appearances_df = pd.DataFrame(data=data, columns=['id', 'player', 'pokemon', 'won', 'appearance_order'])
         appearances_df = appearances_df.drop_duplicates(keep='first')
         st.session_state['appearances_df'] = appearances_df
         

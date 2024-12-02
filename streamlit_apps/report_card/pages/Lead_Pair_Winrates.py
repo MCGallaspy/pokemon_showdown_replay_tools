@@ -15,8 +15,8 @@ from pokemon_showdown_replay_tools.sqlite import get_pair_marginal_win_rates_con
 
 
 sns.set_style('darkgrid')
-st.header("Marginal Win Rates")
-st.markdown("Win rates for different pairs of pokemon that you brought to the battle, regardless of what order they appeared.")
+st.header("Lead Pair Win Rates")
+st.markdown("Win rates for different lead pairs that you used.")
 
 search_df = st.session_state.get('search_df', None)
 if search_df is None:
@@ -30,7 +30,8 @@ replays_df = st.session_state.get('replays_df', None)
 replays_df = replays_df[replays_df.id.isin(search_df.id)].copy()
 
 with st.spinner("Compulating..."):
-    appearances_df = st.session_state['appearances_df']
+    appearances_df = st.session_state['appearances_df'].copy()
+    appearances_df = appearances_df[appearances_df.appearance_order.isin((0, 1))]
     try:
         con = sqlite3.connect(':memory:')
         with st.spinner("Creating replays table..."):
@@ -73,7 +74,7 @@ with st.spinner("Compulating..."):
 st.header("Detailed replay data")
 st.write(win_rates_df)
 
-unique_pairs = (daily_marginals_df.pair.unique())
+unique_pairs = sorted(daily_marginals_df.pair.unique())
 display_list = st.multiselect(
     "Plot daily win rates for these pairs",
     options=unique_pairs

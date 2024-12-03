@@ -31,6 +31,7 @@ replays_df = replays_df[replays_df.id.isin(search_df.id)].copy()
 
 with st.spinner("Compulating..."):
     appearances_df = st.session_state['appearances_df']
+    appearances_df = appearances_df.loc[:, ['id', 'player', 'pokemon', 'won']].drop_duplicates()
     try:
         con = sqlite3.connect(':memory:')
         with st.spinner("Creating replays table..."):

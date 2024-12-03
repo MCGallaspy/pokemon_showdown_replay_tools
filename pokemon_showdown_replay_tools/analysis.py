@@ -11,6 +11,7 @@ def parse_replay(replay: str) -> dict:
     """
     lines = replay.splitlines()
     pokemon = []
+    moves = []
     players = {}
     switch_stmt = re.compile(r'\|(switch|drag)\|(?P<pokemon>[^|]+)\|(?P<details>[^|]+)\|[^|]+')
     replace_stmt = re.compile(r'\|replace\|(?P<pokemon>[^|]+)\|(?P<details>[^|]+)\|[^|]+')
@@ -18,6 +19,7 @@ def parse_replay(replay: str) -> dict:
     tie_stmt = re.compile(r'\|tie$')
     player_stmt = re.compile(r'\|player\|p(?P<num>\d)\|(?P<name>[^|]+)\|[^|]+\|[^|]*$')
     pokemon_substmt = re.compile(r'p(\d)(\w): (?P<name>.*)')
+    move_stmt = re.compile(r'\|move\|(?P<pokemon>[^|]+)\|(?P<move>[^|]+)\|[^|]+')
     winner = None
     tie = False
     for line in lines:
@@ -47,13 +49,31 @@ def parse_replay(replay: str) -> dict:
         if mo:
             tie = True
             continue
+        
+        mo = move_stmt.match(line)
+        if mo:
+            order = len(moves)
+            poke_mo = pokemon_substmt.match(mo.group('pokemon'))
+            moves.append({
+                "player": int(poke_mo.group(1)),
+                "position": poke_mo.group(2),
+                "pokemon": poke_mo.group('name'),
+                "move": mo.group('move'),
+                "order": order,
+            })
+            continue
     
     for p in pokemon:
         key = p['player']
         p['player'] = players[key]
     
+    for move in moves:
+        key = move['player']
+        move['player'] = players[key]
+    
     return {
         'pokemon': pokemon,
         'winner': winner,
         'tie': tie,
+        'moves': moves,
     }

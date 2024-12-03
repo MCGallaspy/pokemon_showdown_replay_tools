@@ -240,10 +240,11 @@ if search_df is not None:
     st.header("Additional Filters")
     
     meta_formats = list(search_df.format.value_counts().index)
-    meta_format_filter = st.multiselect(
+    meta_format_filter = st.segmented_control(
         "Filter by meta format",
         meta_formats,
-        meta_formats,
+        default=meta_formats,
+        selection_mode="multi",
     )
     
     selection_mask = np.ones(search_df.shape[0], dtype='bool')

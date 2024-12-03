@@ -6,10 +6,12 @@ from matplotlib import pyplot as plt
 
 st.header("Format Ratings")
 
-search_df = st.session_state.get('search_df', None).copy()
+search_df = st.session_state.get('search_df', None)
 if search_df is None:
     st.warning("Load some data first")
     st.stop()
+
+search_df = search_df.copy()
 
 selection_mask = st.session_state['selection_mask']
 search_df = search_df[selection_mask]

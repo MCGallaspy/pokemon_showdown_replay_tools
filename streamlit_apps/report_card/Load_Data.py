@@ -39,7 +39,7 @@ filters_columns = st.columns(3)
 
 with filters_columns[0]:
     end = datetime.utcnow()
-    start = datetime.utcnow() - timedelta(days=1)
+    start = datetime.utcnow() - timedelta(weeks=4)
     date_filters = st.date_input(
         "Upload date range (UTC)",
         value=(start, end),
@@ -171,14 +171,27 @@ if search_df is not None:
         pbar = st.progress(0 ,"Parsing replays")
         count = 0
         N = search_df.shape[0]
-        def parse_replay_with_progress(replay_id: str):
-            result = parse_replay(replay_id)
+        def parse_replay_with_progress(replay: str):
             global count
+            try:
+                result = parse_replay(replay)
+            except KeyError:
+                result = {"error": True}
             count += 1
             pbar.progress(count / N, "Parsing replays")
             return result
         
         replays_df['parse_results'] = replays_df.log.apply(parse_replay_with_progress)
+        error_mask = replays_df.parse_results.apply(lambda x: x.get('error', False))
+        num_error = np.sum(error_mask)
+        error_ids = replays_df[error_mask].index.values
+        error_ids = list(error_ids)
+        search_df['parse error'] = False
+        search_df.loc[search_df.id.isin(error_ids), 'parse error'] = True
+        if num_error > 0:
+            st.warning(f"Couldn't parse {num_error} replays")
+        replays_df = replays_df[~error_mask]
+        
         replays_df['players'] = replays_df['players'].apply(','.join)
         del replays_df['log']
         st.session_state['replays_df'] = replays_df

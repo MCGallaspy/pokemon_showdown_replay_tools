@@ -184,6 +184,7 @@ if search_df is not None:
         st.session_state['replays_df'] = replays_df
         
         data = []
+        moves_data = []
         report_username = st.session_state['report_username'].lower()
         pbar = st.progress(0, "Analyzing appearances")
         count = 0
@@ -193,8 +194,7 @@ if search_df is not None:
             # parsed_replay is a nested dictionary of info about the replay
             # For details see parse_replay in analysis.py
             winner_name = parsed_replay['winner'].lower()
-            appearance_num = 0
-            for pokemon_appearance in parsed_replay['pokemon']:
+            for appearance_num, pokemon_appearance in enumerate(parsed_replay['pokemon']):
                 player_name = pokemon_appearance['player'].lower()
                 if player_name == report_username:
                     data.append([
@@ -204,12 +204,25 @@ if search_df is not None:
                         1 if winner_name == player_name else 0,
                         appearance_num,
                     ])
-                    appearance_num +=  1
+            for move in parsed_replay['moves']:
+                player_name = move['player'].lower()
+                if player_name == report_username:
+                    print(move)
+                    moves_data.append([
+                        row.id,
+                        move['pokemon'],
+                        move['move'],
+                        move['order'],
+                    ])
             count += 1
             pbar.progress(count / N, "Analyzing appearances")
         appearances_df = pd.DataFrame(data=data, columns=['id', 'player', 'pokemon', 'won', 'appearance_order'])
         appearances_df = appearances_df.drop_duplicates(keep='first')
         st.session_state['appearances_df'] = appearances_df
+        
+        moves_df = pd.DataFrame(data=moves_data, columns=['id', 'pokemon', 'move', 'order'])
+        moves_df = moves_df.drop_duplicates(keep='first')
+        st.session_state['moves_df'] = moves_df
         
     
     st.header("Additional Filters")

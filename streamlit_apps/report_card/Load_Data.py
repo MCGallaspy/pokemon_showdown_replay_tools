@@ -207,7 +207,6 @@ if search_df is not None:
             for move in parsed_replay['moves']:
                 player_name = move['player'].lower()
                 if player_name == report_username:
-                    print(move)
                     moves_data.append([
                         row.id,
                         move['pokemon'],

@@ -47,9 +47,7 @@ df = pd.concat([
 df['percent used'] = None
 for pokemon in df.reset_index().pokemon.unique():
     total = df.loc[(pokemon, slice(None)), 'times used'].sum()
-    print(total)
     percent_used = df.loc[(pokemon, slice(None)), 'times used'] / total * 100
-    print(percent_used)
     df.loc[(pokemon, slice(None)), 'percent used'] = percent_used
 
 df = df.reset_index().sort_values(by=['pokemon', 'percent used'], ascending=(True, False))
